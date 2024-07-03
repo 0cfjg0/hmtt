@@ -16,6 +16,8 @@
         <module>heima-leadnews-service</module>
         <module>heima-leadnews-gateway</module>
         <module>heima-leadnews-test</module>
+        <module>heima-leadnews-service</module>
+        <module>heima-leadnews-app-gateway</module>
     </modules>
 
     <!-- 继承Spring boot工程 -->
@@ -68,6 +70,23 @@
         <xxl.job.version>2.2.0-SNAPSHOT</xxl.job.version>
     </properties>
     <dependencies>
+        <dependency>
+            <groupId>io.springfox</groupId>
+            <artifactId>springfox-swagger2</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.springfox</groupId>
+            <artifactId>springfox-swagger-ui</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.github.xiaoymin</groupId>
+            <artifactId>knife4j-spring-boot-starter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>cn.hutool</groupId>
+            <artifactId>hutool-all</artifactId>
+            <version>5.8.7</version>
+        </dependency>
         <!--日志处理包-->
         <dependency>
             <groupId>org.springframework.boot</groupId>
