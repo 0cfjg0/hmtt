@@ -4,6 +4,7 @@ import cn.hutool.core.util.ObjectUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.baomidou.mybatisplus.extension.api.R;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.heima.common.exception.CustomException;
@@ -17,8 +18,10 @@ import com.heima.wemedia.mapper.WmMaterialMapper;
 import com.heima.wemedia.service.WmMaterialService;
 import com.heima.wemedia.utils.WMThreadLocalUtils;
 import lombok.extern.slf4j.Slf4j;
+import org.checkerframework.checker.units.qual.A;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.annotation.Resource;
@@ -102,5 +105,62 @@ public class WmMaterialServiceImpl extends ServiceImpl<WmMaterialMapper, WmMater
         PageResponseResult pageResponseResult = new PageResponseResult(dto.getPage(), dto.getSize(), (int) res.getTotal());
         pageResponseResult.setData(res.getRecords());
         return pageResponseResult;
+    }
+
+    @Override
+    public ResponseResult collect(Long materialId) {
+        if(ObjectUtil.isEmpty(materialId)){
+            throw new CustomException(AppHttpCodeEnum.PARAM_INVALID);
+        }
+        Integer userId = WMThreadLocalUtils.getCurrentUser();
+        if(ObjectUtil.isEmpty(userId)){
+            throw new CustomException(AppHttpCodeEnum.NEED_LOGIN);
+        }
+
+        //业务
+        try {
+            LambdaQueryWrapper<WmMaterial> wrapper = Wrappers.<WmMaterial>lambdaQuery()
+                    .eq(WmMaterial::getUserId, userId)
+                    .eq(WmMaterial::getId, materialId);
+            WmMaterial res = wmMaterialMapper.selectById(materialId);
+            res.setIsCollection((short) 1);
+            wmMaterialMapper.update(res,wrapper);
+        } catch (Exception e) {
+            throw new CustomException(AppHttpCodeEnum.SERVER_ERROR);
+        }
+
+        return ResponseResult.okResult(200,"成功");
+    }
+
+    @Override
+    @Transactional
+    public ResponseResult deleteMaterial(Long materialId) {
+        if(ObjectUtil.isEmpty(materialId)){
+            throw new CustomException(AppHttpCodeEnum.PARAM_INVALID);
+        }
+        Integer userId = WMThreadLocalUtils.getCurrentUser();
+        if(ObjectUtil.isEmpty(userId)){
+            throw new CustomException(AppHttpCodeEnum.NEED_LOGIN);
+        }
+
+        //业务
+        //先删除表记录
+        WmMaterial res = wmMaterialMapper.selectById(materialId);
+        String url = res.getUrl();
+        LambdaQueryWrapper<WmMaterial> wrapper = Wrappers.<WmMaterial>lambdaQuery()
+                .eq(WmMaterial::getId, materialId)
+                .eq(WmMaterial::getUserId, userId);
+        try {
+            wmMaterialMapper.delete(wrapper);
+        } catch (Exception e) {
+            throw new CustomException(AppHttpCodeEnum.SERVER_ERROR);
+        }
+        //再删除图片
+        try {
+            fileStorageService.delete(url);
+        } catch (Exception e) {
+            throw new CustomException(AppHttpCodeEnum.SERVER_ERROR);
+        }
+        return ResponseResult.okResult(200,"删除成功");
     }
 }
