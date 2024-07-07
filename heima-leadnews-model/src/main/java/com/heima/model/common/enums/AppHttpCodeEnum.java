@@ -26,6 +26,7 @@ public enum AppHttpCodeEnum {
     DATA_EXIST(1000,"数据已经存在"),
     AP_USER_DATA_NOT_EXIST(1001,"ApUser数据不存在"),
     DATA_NOT_EXIST(1002,"数据不存在"),
+    FILE_UPLOAD_ERROR(1003,"文件上传错误"),
     // 数据错误 3000~3500
     NO_OPERATOR_AUTH(3000,"无权限操作"),
     NEED_ADMIN(3001,"需要管理员权限");
