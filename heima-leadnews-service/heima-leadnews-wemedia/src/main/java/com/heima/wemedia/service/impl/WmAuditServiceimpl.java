@@ -1,21 +1,37 @@
 package com.heima.wemedia.service.impl;
 
+import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.bean.copier.CopyOptions;
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.heima.apis.article.IArticleClient;
 import com.heima.common.aliyun.GreenImageScan;
 import com.heima.common.aliyun.GreenTextScan;
 import com.heima.common.constants.AliyunAuditResultConstants;
 import com.heima.common.exception.CustomException;
 import com.heima.file.service.FileStorageService;
+import com.heima.model.article.dtos.ArticleDto;
+import com.heima.model.article.pojos.ApArticle;
+import com.heima.model.common.dtos.ResponseResult;
 import com.heima.model.common.enums.AppHttpCodeEnum;
 import com.heima.model.wemedia.dtos.WmAuditDto;
 import com.heima.model.wemedia.dtos.WmContentDto;
+import com.heima.model.wemedia.dtos.WmNewsDto;
+import com.heima.model.wemedia.pojos.WmChannel;
 import com.heima.model.wemedia.pojos.WmNews;
+import com.heima.model.wemedia.pojos.WmUser;
 import com.heima.wemedia.constant.NewsConstants;
+import com.heima.wemedia.mapper.WmChannelMapper;
+import com.heima.wemedia.mapper.WmNewsMapper;
+import com.heima.wemedia.mapper.WmUserMapper;
 import com.heima.wemedia.service.WmAuditService;
 import com.heima.wemedia.service.WmNewsService;
+import org.apache.commons.net.nntp.Article;
 import org.springframework.stereotype.Service;
+import sun.awt.windows.WWindowPeer;
 
 import javax.annotation.Resource;
 import java.time.Instant;
@@ -30,6 +46,18 @@ public class WmAuditServiceimpl implements WmAuditService {
 
     @Resource
     WmNewsService wmNewsService;
+
+    @Resource
+    WmNewsMapper wmNewsMapper;
+
+    @Resource
+    WmUserMapper wmUserMapper;
+
+    @Resource
+    IArticleClient articleClient;
+
+    @Resource
+    WmChannelMapper wmChannelMapper;
 
     @Resource
     GreenTextScan greenTextScan;
@@ -64,10 +92,12 @@ public class WmAuditServiceimpl implements WmAuditService {
 
         if(flagText == 3 || flagImage == 3){
             CustomException exception = flagText == 3 ? new CustomException(AppHttpCodeEnum.TEXT_AUDIT_ERROR) : new CustomException(AppHttpCodeEnum.IMAGE_AUDIT_ERROR);
-            this.updateNews(news, WmNews.Status.FAIL,);
+            this.updateNews(news, WmNews.Status.FAIL,exception.getMessage());
             throw exception;
         }else if(flagText != 0 || flagImage != 0){
-
+            CustomException exception = flagText == 2 ? new CustomException(AppHttpCodeEnum.TEXT_AUDIT_CHECK_ERROR) : new CustomException(AppHttpCodeEnum.IMAGE_AUDIT_CHECK_ERROR);
+            this.updateNews(news, WmNews.Status.FAIL,exception.getMessage());
+            throw exception;
         }
 
         //判断是否到达发布时间
@@ -88,16 +118,44 @@ public class WmAuditServiceimpl implements WmAuditService {
      * @param news
      * @return
      */
-    private Integer saveArticle(WmNews news) {
+    private Long saveArticle(WmNews news) {
+        //保存到app端文章
+        ArticleDto dto = BeanUtil.toBean(news, ArticleDto.class, CopyOptions.create(ArticleDto.class,true,"id"));
+        dto.setContent(news.getContent());
+        //作者
+        dto.setAuthorId(news.getUserId().longValue());
+        WmUser wmUser = wmUserMapper.selectById(news.getUserId());
+        if(ObjectUtil.isNotEmpty(wmUser)){
+            dto.setAuthorName(wmUser.getName());
+        }
+        //频道
+        WmChannel wmChannel = wmChannelMapper.selectById(news.getChannelId());
+        dto.setChannelName(wmChannel.getName());
+
+        dto.setFlag((byte) 0);
+        dto.setLayout(news.getType());
+
+        //远程调用
+        ResponseResult responseResult = articleClient.saveArticle(dto);
+        if(responseResult.getCode() == 200){
+            return (Long) responseResult.getData();
+        }else{
+            throw new CustomException(AppHttpCodeEnum.APP_ARTICLE_INSERT_ERROR);
+        }
     }
 
     /**
      * 更新状态
      * @param news
-     * @param success
-     * @param successNotPublished
      */
     private void updateNews(WmNews news, WmNews.Status status, String reason) {
+        LambdaUpdateWrapper<WmNews> wrapper = Wrappers.<WmNews>lambdaUpdate()
+                .set(WmNews::getStatus, status)
+                .set(WmNews::getReason, reason);
+        int update = wmNewsMapper.update(news, wrapper);
+        if(update==0){
+            throw new CustomException(AppHttpCodeEnum.NEWS_UPDATE_ERROR);
+        }
     }
 
     /**
