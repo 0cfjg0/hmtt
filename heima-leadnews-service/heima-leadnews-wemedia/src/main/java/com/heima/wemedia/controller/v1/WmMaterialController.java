@@ -44,6 +44,12 @@ public class WmMaterialController {
         return wemediaService.collect(materialId);
     }
 
+    @GetMapping("/cancel_collect/{id}")
+    public ResponseResult cancelCollect(@PathVariable("id") Long materialId){
+        log.info("id:{}",materialId.toString());
+        return wemediaService.collect(materialId);
+    }
+
     @GetMapping("/del_picture/{id}")
     public ResponseResult deleteMaterial(@PathVariable("id") Long materialId){
         log.info("id:{}",materialId.toString());

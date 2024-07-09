@@ -123,7 +123,7 @@ public class WmMaterialServiceImpl extends ServiceImpl<WmMaterialMapper, WmMater
                     .eq(WmMaterial::getUserId, userId)
                     .eq(WmMaterial::getId, materialId);
             WmMaterial res = wmMaterialMapper.selectById(materialId);
-            res.setIsCollection((short) 1);
+            res.setIsCollection((short)(res.getIsCollection()==1?0:1));
             wmMaterialMapper.update(res,wrapper);
         } catch (Exception e) {
             throw new CustomException(AppHttpCodeEnum.SERVER_ERROR);

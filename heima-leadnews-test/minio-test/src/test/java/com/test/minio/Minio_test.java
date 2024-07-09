@@ -1,10 +1,12 @@
 package com.test.minio;
 
+import com.heima.common.aliyun.GreenImageScan;
 import com.heima.file.config.MinIOConfig;
 import com.heima.file.service.impl.MinIOFileStorageService;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
 import io.minio.errors.*;
+import org.checkerframework.checker.units.qual.A;
 import org.junit.jupiter.api.Test;
 import org.junit.runner.RunWith;
 import org.junit.runner.Runner;
@@ -51,5 +53,11 @@ public class Minio_test {
         String url = minIO.uploadImgFile("cfjg", "test.jpg", new FileInputStream("D:\\文件迁移\\image\\test.jpg"));
         System.out.println(url);
     }
+
+    @Test
+    public void greenTest(){
+
+    }
+
 
 }

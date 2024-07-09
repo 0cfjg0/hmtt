@@ -2,6 +2,8 @@ package com.heima.wemedia.interceptor;
 
 import cn.hutool.core.convert.Convert;
 import cn.hutool.core.util.ObjectUtil;
+import com.heima.common.exception.CustomException;
+import com.heima.model.common.enums.AppHttpCodeEnum;
 import com.heima.wemedia.utils.WMThreadLocalUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -18,6 +20,8 @@ public class WMInterceptor implements HandlerInterceptor {
         //1.获取请求头
         String wmUserId = request.getHeader("wmUserId");
         if(ObjectUtil.isEmpty(wmUserId)){
+            response.setContentType("application/json");
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             return false;
         }
         //2.放到ThreadLocal中

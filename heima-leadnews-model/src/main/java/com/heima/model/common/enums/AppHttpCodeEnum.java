@@ -29,7 +29,10 @@ public enum AppHttpCodeEnum {
     FILE_UPLOAD_ERROR(1003,"文件上传错误"),
     // 数据错误 3000~3500
     NO_OPERATOR_AUTH(3000,"无权限操作"),
-    NEED_ADMIN(3001,"需要管理员权限");
+    NEED_ADMIN(3001,"需要管理员权限"),
+
+    DELETE_ERROR(10001,"删除错误"),
+    PUBLISH_ERROR(10002,"发布失败");
 
     int code;
     String errorMessage;
