@@ -1,21 +1,31 @@
 package com.heima.article.service.impl;
 
 
+import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.convert.Convert;
 import cn.hutool.core.date.DateTime;
 import cn.hutool.core.util.ObjectUtil;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.baomidou.mybatisplus.extension.api.R;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.heima.article.mapper.ArticleConfigMapper;
+import com.heima.article.mapper.ArticleContentMapper;
 import com.heima.article.mapper.ArticleMapper;
 import com.heima.article.service.ArticleService;
 import com.heima.common.constants.ArticleConstants;
 import com.heima.common.exception.CustomException;
+import com.heima.model.article.dtos.ArticleDto;
 import com.heima.model.article.dtos.ArticleHomeDto;
 import com.heima.model.article.pojos.ApArticle;
+import com.heima.model.article.pojos.ApArticleConfig;
+import com.heima.model.article.pojos.ApArticleContent;
 import com.heima.model.common.dtos.ResponseResult;
 import com.heima.model.common.enums.AppHttpCodeEnum;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import javax.annotation.Resource;
 import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.List;
@@ -33,6 +43,12 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, ApArticle> im
 
     @Autowired
     private ArticleMapper articleMapper;
+
+    @Resource
+    ArticleConfigMapper articleConfigMapper;
+
+    @Resource
+    ArticleContentMapper articleContentMapper;
 
     @Override
     public ResponseResult load(short type,ArticleHomeDto dto) {
@@ -62,5 +78,48 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, ApArticle> im
         List<ApArticle> list = articleMapper.selectList(type,dto);
         // 三.封装数据
         return ResponseResult.okResult(list);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public ResponseResult batchSave(ArticleDto dto) {
+        //校验参数
+        if(ObjectUtil.isEmpty(dto)){
+            throw new CustomException(AppHttpCodeEnum.PARAM_INVALID);
+        }
+        ApArticle article = BeanUtil.toBean(dto, ApArticle.class);
+        //保存配置信息
+        if (dto.getId() == null) {
+            //回填主键
+            articleMapper.insert(article);
+            ApArticleConfig apArticleConfig = new ApArticleConfig(article.getId());
+            int testC = articleConfigMapper.insert(apArticleConfig);
+            if(testC==0){
+                throw new CustomException(AppHttpCodeEnum.APP_ARTICLE_CONFIG_INSERT_ERROR);
+            }
+            //保存内容信息
+            ApArticleContent apArticleContent = ApArticleContent.builder()
+                    .articleId(article.getId())
+                    .content(dto.getContent())
+                    .build();
+            int testCon = articleContentMapper.insert(apArticleContent);
+            if(testCon==0){
+                throw new CustomException(AppHttpCodeEnum.APP_ARTICLE_CONTENT_INSERT_ERROR);
+            }
+        }else{
+            //修改内容
+            //更新内容信息
+            ApArticleContent apArticleContent = ApArticleContent.builder()
+                    .articleId(article.getId())
+                    .content(dto.getContent())
+                    .build();
+            int testCon = articleContentMapper.update(apArticleContent, Wrappers
+                    .<ApArticleContent>lambdaUpdate()
+                    .eq(ApArticleContent::getArticleId,article.getId()));
+            if(testCon==0){
+                throw new CustomException(AppHttpCodeEnum.APP_ARTICLE_CONTENT_INSERT_ERROR);
+            }
+        }
+        return ResponseResult.okResult(article.getId());
     }
 }

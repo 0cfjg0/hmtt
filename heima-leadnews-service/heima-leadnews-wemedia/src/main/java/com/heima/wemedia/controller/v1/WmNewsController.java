@@ -1,5 +1,6 @@
 package com.heima.wemedia.controller.v1;
 
+import com.baomidou.mybatisplus.extension.api.R;
 import com.heima.model.common.dtos.ResponseResult;
 import com.heima.model.wemedia.dtos.WmNewsDto;
 import com.heima.model.wemedia.dtos.WmNewsPageReqDto;
@@ -46,4 +47,11 @@ public class WmNewsController {
         log.info("id:{}",id.toString());
         return wmNewsService.deleteNews(id);
     }
+
+    @PostMapping("/down_or_up")
+    public ResponseResult downOrUpNews(@RequestBody WmNewsDto wmNewsDto){
+        log.info("dto:{}",wmNewsDto);
+        return wmNewsService.downOrUpNews(wmNewsDto);
+    }
+
 }

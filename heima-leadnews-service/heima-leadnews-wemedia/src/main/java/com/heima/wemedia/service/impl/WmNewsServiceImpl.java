@@ -6,8 +6,10 @@ import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.baomidou.mybatisplus.extension.api.R;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.heima.common.exception.CustomException;
@@ -27,6 +29,7 @@ import com.heima.wemedia.service.WmNewsService;
 import com.heima.wemedia.utils.WMThreadLocalUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.checkerframework.checker.units.qual.A;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
@@ -136,8 +139,28 @@ public class WmNewsServiceImpl extends ServiceImpl<WmNewsMapper, WmNews> impleme
 
     @Override
     public ResponseResult deleteNews(Long id) {
-        this.removeById(id);
+        LambdaQueryWrapper<WmNews> wrapper = Wrappers.<WmNews>lambdaQuery()
+                .eq(WmNews::getId, id)
+                .eq(WmNews::getUserId, WMThreadLocalUtils.getCurrentUser());
+        this.remove(wrapper);
         return ResponseResult.okResult(200,"删除成功");
+    }
+
+    @Override
+    public ResponseResult downOrUpNews(WmNewsDto wmNewsDto){
+        if(ObjectUtil.isEmpty(wmNewsDto)){
+            throw new CustomException(AppHttpCodeEnum.PARAM_INVALID);
+        }
+        Short enable = wmNewsDto.getEnable();
+        LambdaUpdateWrapper<WmNews> wrapper = Wrappers.<WmNews>lambdaUpdate()
+                .set(WmNews::getEnable, enable)
+                .eq(WmNews::getId,wmNewsDto.getId());
+        boolean flag = this.update(wrapper);
+        if(!flag){
+            throw new CustomException(AppHttpCodeEnum.STATUS_UPDATE_ERROR);
+        }else{
+            return ResponseResult.okResult(200,"操作成功");
+        }
     }
 
     /**
