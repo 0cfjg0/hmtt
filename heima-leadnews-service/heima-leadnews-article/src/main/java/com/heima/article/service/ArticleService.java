@@ -5,7 +5,10 @@ import com.heima.model.article.dtos.ArticleDto;
 import com.heima.model.article.dtos.ArticleHomeDto;
 import com.heima.model.article.pojos.ApArticle;
 import com.heima.model.common.dtos.ResponseResult;
+import freemarker.template.TemplateException;
 import org.springframework.stereotype.Service;
+
+import java.io.IOException;
 
 @Service
 public interface ArticleService extends IService<ApArticle>{

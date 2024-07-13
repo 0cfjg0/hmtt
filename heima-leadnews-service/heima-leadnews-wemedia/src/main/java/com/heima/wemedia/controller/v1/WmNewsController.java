@@ -2,6 +2,7 @@ package com.heima.wemedia.controller.v1;
 
 import com.baomidou.mybatisplus.extension.api.R;
 import com.heima.model.common.dtos.ResponseResult;
+import com.heima.model.common.enums.AppHttpCodeEnum;
 import com.heima.model.wemedia.dtos.WmNewsDto;
 import com.heima.model.wemedia.dtos.WmNewsPageReqDto;
 import com.heima.wemedia.service.WmNewsService;
@@ -43,7 +44,7 @@ public class WmNewsController {
     }
 
     @GetMapping("/del_news/{id}")
-    public ResponseResult deleteNews(@PathVariable Long id){
+    public ResponseResult deleteNews(@PathVariable Integer id){
         log.info("id:{}",id.toString());
         return wmNewsService.deleteNews(id);
     }

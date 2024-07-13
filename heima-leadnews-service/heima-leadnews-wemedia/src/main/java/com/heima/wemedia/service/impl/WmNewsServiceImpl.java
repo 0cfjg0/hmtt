@@ -12,6 +12,7 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.api.R;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.heima.apis.article.IArticleClient;
 import com.heima.common.exception.CustomException;
 import com.heima.model.common.dtos.PageResponseResult;
 import com.heima.model.common.dtos.ResponseResult;
@@ -25,19 +26,28 @@ import com.heima.wemedia.constant.NewsConstants;
 import com.heima.wemedia.mapper.WMRelationMapper;
 import com.heima.wemedia.mapper.WmMaterialMapper;
 import com.heima.wemedia.mapper.WmNewsMapper;
+import com.heima.wemedia.service.WmAuditService;
 import com.heima.wemedia.service.WmNewsService;
 import com.heima.wemedia.utils.WMThreadLocalUtils;
+import io.seata.spring.annotation.GlobalTransactional;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.checkerframework.checker.units.qual.A;
+import org.redisson.api.RBlockingQueue;
+import org.redisson.api.RDelayedQueue;
+import org.redisson.api.RedissonClient;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -57,6 +67,17 @@ public class WmNewsServiceImpl extends ServiceImpl<WmNewsMapper, WmNews> impleme
 
     @Resource
     WmMaterialMapper wmMaterialMapper;
+
+    @Resource
+    WmAuditService wmAuditService;
+
+    @Resource
+    IArticleClient articleClient;
+
+    @Resource
+    RedissonClient redissonClient;
+
+    private static final Integer TEST_ID = 1;
 
     @Override
     public ResponseResult findPage(WmNewsPageReqDto dto) {
@@ -97,6 +118,8 @@ public class WmNewsServiceImpl extends ServiceImpl<WmNewsMapper, WmNews> impleme
      * @return
      */
     @Override
+//    @GlobalTransactional
+    @Transactional
     public ResponseResult submit(WmNewsDto dto) {
         if(ObjectUtil.isEmpty(dto)){
             throw new CustomException(AppHttpCodeEnum.PARAM_INVALID);
@@ -114,17 +137,29 @@ public class WmNewsServiceImpl extends ServiceImpl<WmNewsMapper, WmNews> impleme
         //新增
         //主键回填
         boolean flag = this.saveOrUpdate(news);
-        if(!flag){
-            throw new CustomException(AppHttpCodeEnum.PUBLISH_ERROR);
-        }
-        //判断是否为草稿
-        if(dto.getStatus().equals(NewsConstants.DRAFT_STATUS)){
-            //草稿无需保存素材关系
-            return ResponseResult.okResult(200,"提交成功");
+
+        //给关系填入newsId
+        wmRelationMapper.update(WmNewsMaterial.builder().newsId(news.getId()).build(), Wrappers.<WmNewsMaterial>lambdaUpdate().eq(WmNewsMaterial::getNewsId,TEST_ID));
+
+//        if(!flag){
+//            throw new CustomException(AppHttpCodeEnum.PUBLISH_ERROR);
+//        }
+//        //判断是否为草稿
+//        if(dto.getStatus().equals(NewsConstants.DRAFT_STATUS)){
+//            //草稿无需保存素材关系
+//            return ResponseResult.okResult(200,"提交成功");
+//        }
+        dto.setEnable(NewsConstants.UP);
+        this.downOrUpNews(dto);
+
+        //审核
+        try {
+            wmAuditService.auditMedia(news.getId());
+        } catch (Exception e) {
+            return ResponseResult.errorResult(AppHttpCodeEnum.AUDIT_ERROR);
         }
 
-
-        return null;
+        return ResponseResult.okResult(200,"发布成功");
     }
 
     /**
@@ -138,10 +173,9 @@ public class WmNewsServiceImpl extends ServiceImpl<WmNewsMapper, WmNews> impleme
     }
 
     @Override
-    public ResponseResult deleteNews(Long id) {
+    public ResponseResult deleteNews(Integer id) {
         LambdaQueryWrapper<WmNews> wrapper = Wrappers.<WmNews>lambdaQuery()
-                .eq(WmNews::getId, id)
-                .eq(WmNews::getUserId, WMThreadLocalUtils.getCurrentUser());
+                .eq(WmNews::getId, id);
         this.remove(wrapper);
         return ResponseResult.okResult(200,"删除成功");
     }
@@ -152,26 +186,25 @@ public class WmNewsServiceImpl extends ServiceImpl<WmNewsMapper, WmNews> impleme
             throw new CustomException(AppHttpCodeEnum.PARAM_INVALID);
         }
         Short enable = wmNewsDto.getEnable();
+        WmNews wmNews = BeanUtil.toBean(wmNewsDto,WmNews.class);
         LambdaUpdateWrapper<WmNews> wrapper = Wrappers.<WmNews>lambdaUpdate()
                 .set(WmNews::getEnable, enable)
                 .eq(WmNews::getId,wmNewsDto.getId());
-        boolean flag = this.update(wrapper);
-        if(!flag){
-            throw new CustomException(AppHttpCodeEnum.STATUS_UPDATE_ERROR);
-        }else{
-            return ResponseResult.okResult(200,"操作成功");
-        }
+        this.wmNewsMapper.update(wmNews,wrapper);
+        return ResponseResult.okResult(200,"操作成功");
     }
 
     /**
      * 批量保存素材关系
      */
     private void saveRelations(List<String> list,short type,Integer newsId){
-        List<Integer> res = wmMaterialMapper.selectList(Wrappers.<WmMaterial>lambdaQuery().in(WmMaterial::getUrl, list))
-                .stream()
-                .map(item -> item.getId())
-                .collect(Collectors.toList());
-        wmRelationMapper.saveRelations(res,type,newsId);
+        if (ObjectUtil.isNotEmpty(list)) {
+            List<Integer> res = wmMaterialMapper.selectList(Wrappers.<WmMaterial>lambdaQuery().in(WmMaterial::getUrl, list))
+                    .stream()
+                    .map(item -> item.getId())
+                    .collect(Collectors.toList());
+            wmRelationMapper.saveRelations(res,type,newsId);
+        }
     }
 
     /**
@@ -182,10 +215,10 @@ public class WmNewsServiceImpl extends ServiceImpl<WmNewsMapper, WmNews> impleme
         LambdaQueryWrapper<WmNewsMaterial> wrapper = Wrappers.<WmNewsMaterial>lambdaQuery()
                 .eq(WmNewsMaterial::getNewsId, dto.getId());
         int flag = wmRelationMapper.delete(wrapper);
-        if(flag==0){
-            //删除失败
-            throw new CustomException(AppHttpCodeEnum.DELETE_ERROR);
-        }
+//        if(flag==0){
+//            //删除失败
+//            throw new CustomException(AppHttpCodeEnum.DELETE_ERROR);
+//        }
     }
 
     /**
@@ -212,6 +245,7 @@ public class WmNewsServiceImpl extends ServiceImpl<WmNewsMapper, WmNews> impleme
                         imgs.add(map.get("value").toString());
                     }
             }
+            this.saveRelations(imgs,NewsConstants.WM_CONTENT_REFERENCE,TEST_ID);
 //      * 匹配规则：
 //      * 1，如果内容图片大于等于1，小于3  单图  type 1
 //      * 2，如果内容图片大于等于3  多图  type 3
@@ -235,7 +269,6 @@ public class WmNewsServiceImpl extends ServiceImpl<WmNewsMapper, WmNews> impleme
             }
 
             res.setImages(StringUtils.join(imgs,","));
-            this.saveRelations(imgs,NewsConstants.WM_CONTENT_REFERENCE,res.getId());
             return res;
         }
 
@@ -244,8 +277,8 @@ public class WmNewsServiceImpl extends ServiceImpl<WmNewsMapper, WmNews> impleme
         res.setImages(StringUtils.join(images,","));
 
         //保存素材关系
-        if(ObjectUtil.isNotEmpty(images)){
-            this.saveRelations(images,NewsConstants.WM_COVER_REFERENCE,res.getId());
+        if(ObjectUtil.isNotEmpty(images) && !dto.getStatus().equals(NewsConstants.DRAFT_STATUS)){
+            this.saveRelations(images,NewsConstants.WM_COVER_REFERENCE,TEST_ID);
         }
 
         return res;

@@ -1,8 +1,10 @@
 package com.heima.wemedia.constant;
 
+import io.swagger.models.auth.In;
+
 public class NewsConstants {
 
-    public final static Short DRAFT_STATUS = 1;
+    public final static Short DRAFT_STATUS = 0;
 
     public final static Short COLLECT_MATERIAL = 1;//收藏
 
@@ -19,9 +21,15 @@ public class NewsConstants {
     public final static Short WM_CONTENT_REFERENCE = 0;
     public final static Short WM_COVER_REFERENCE = 1;
 
-    public final static String SUCCESS_NOT_PUBLISHED = "发布成功待审核";
+    public final static String SUCCESS_NOT_PUBLISHED = "审核成功待发布";
     public final static String SUCCESS = "发布成功";
 //    public final static Short WM_COVER_REFERENCE = 1;
 //    public final static Short WM_COVER_REFERENCE = 1;
 
+    public final static Short CHECK_SUCCESS = 1;
+    public final static Short CHECK_DOUBTFUL = 2;
+    public final static Short CHECK_FAILED = 3;
+
+    public final static Short UP = 1;//上架
+    public final static Short DOWN = 0;//下架
 }

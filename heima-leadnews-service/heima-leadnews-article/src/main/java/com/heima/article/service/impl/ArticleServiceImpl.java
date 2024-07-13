@@ -12,6 +12,7 @@ import com.heima.article.mapper.ArticleConfigMapper;
 import com.heima.article.mapper.ArticleContentMapper;
 import com.heima.article.mapper.ArticleMapper;
 import com.heima.article.service.ArticleService;
+import com.heima.article.service.ArticleStaticGenerater;
 import com.heima.common.constants.ArticleConstants;
 import com.heima.common.exception.CustomException;
 import com.heima.model.article.dtos.ArticleDto;
@@ -21,11 +22,14 @@ import com.heima.model.article.pojos.ApArticleConfig;
 import com.heima.model.article.pojos.ApArticleContent;
 import com.heima.model.common.dtos.ResponseResult;
 import com.heima.model.common.enums.AppHttpCodeEnum;
+import freemarker.template.TemplateException;
+import org.checkerframework.checker.units.qual.A;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.List;
@@ -49,6 +53,9 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, ApArticle> im
 
     @Resource
     ArticleContentMapper articleContentMapper;
+
+    @Resource
+    ArticleStaticGenerater articleStaticGenerater;
 
     @Override
     public ResponseResult load(short type,ArticleHomeDto dto) {
@@ -82,7 +89,7 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, ApArticle> im
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public ResponseResult batchSave(ArticleDto dto) {
+    public ResponseResult batchSave(ArticleDto dto){
         //校验参数
         if(ObjectUtil.isEmpty(dto)){
             throw new CustomException(AppHttpCodeEnum.PARAM_INVALID);
@@ -92,6 +99,7 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, ApArticle> im
         if (dto.getId() == null) {
             //回填主键
             articleMapper.insert(article);
+
             ApArticleConfig apArticleConfig = new ApArticleConfig(article.getId());
             int testC = articleConfigMapper.insert(apArticleConfig);
             if(testC==0){
@@ -106,8 +114,17 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, ApArticle> im
             if(testCon==0){
                 throw new CustomException(AppHttpCodeEnum.APP_ARTICLE_CONTENT_INSERT_ERROR);
             }
+
+            //异步生成页面
+            try {
+                articleStaticGenerater.generatePage(article.getId());
+            } catch (TemplateException | IOException e) {
+                throw new CustomException(AppHttpCodeEnum.SERVER_ERROR);
+            }
         }else{
-            //修改内容
+            //回填主键
+            articleMapper.updateById(article);
+
             //更新内容信息
             ApArticleContent apArticleContent = ApArticleContent.builder()
                     .articleId(article.getId())
@@ -119,7 +136,15 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, ApArticle> im
             if(testCon==0){
                 throw new CustomException(AppHttpCodeEnum.APP_ARTICLE_CONTENT_INSERT_ERROR);
             }
+
+            //异步生成页面
+            try {
+                articleStaticGenerater.generatePage(article.getId());
+            } catch (TemplateException | IOException e) {
+                throw new CustomException(AppHttpCodeEnum.SERVER_ERROR);
+            }
         }
+
         return ResponseResult.okResult(article.getId());
     }
 }

@@ -1,0 +1,13 @@
+server:
+  port: 8883
+spring:
+  application:
+    name: redisson-test
+  redis:
+    host: 192.168.200.130
+    password: leadnews
+    redisson:
+      config:
+        clusterServersConfig:
+          nodeAddresses:
+            - "redis://192.168.200.130:6379"
