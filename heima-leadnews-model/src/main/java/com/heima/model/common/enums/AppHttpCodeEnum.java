@@ -43,7 +43,8 @@ public enum AppHttpCodeEnum {
     APP_ARTICLE_CONFIG_INSERT_ERROR(10008,"文章配置保存异常"),
     APP_ARTICLE_CONTENT_UPDATE_ERROR(10009,"文章内容更新异常"),
     STATUS_UPDATE_ERROR(10010,"状态更新异常"),
-    NEWS_UPDATE_ERROR(100011,"文章更新异常");
+    NEWS_UPDATE_ERROR(10011,"文章更新异常"),
+    ARTICLE_UP_OR_DOWN_ERROR(10012,"文章上下架异常");
 
     int code;
     String errorMessage;

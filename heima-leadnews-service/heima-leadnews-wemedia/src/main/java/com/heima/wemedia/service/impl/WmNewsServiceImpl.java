@@ -36,6 +36,7 @@ import org.checkerframework.checker.units.qual.A;
 import org.redisson.api.RBlockingQueue;
 import org.redisson.api.RDelayedQueue;
 import org.redisson.api.RedissonClient;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,10 +44,7 @@ import org.springframework.transaction.annotation.Transactional;
 import javax.annotation.Resource;
 import java.time.Instant;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -76,6 +74,9 @@ public class WmNewsServiceImpl extends ServiceImpl<WmNewsMapper, WmNews> impleme
 
     @Resource
     RedissonClient redissonClient;
+
+    @Resource
+    KafkaTemplate<String,String> kafkaTemplate;
 
     private static final Integer TEST_ID = 1;
 
@@ -181,8 +182,9 @@ public class WmNewsServiceImpl extends ServiceImpl<WmNewsMapper, WmNews> impleme
     }
 
     @Override
+    @Transactional
     public ResponseResult downOrUpNews(WmNewsDto wmNewsDto){
-        if(ObjectUtil.isEmpty(wmNewsDto)){
+        if(ObjectUtil.isEmpty(wmNewsDto) || (wmNewsDto.getEnable()!=0 && wmNewsDto.getEnable()!=1)){
             throw new CustomException(AppHttpCodeEnum.PARAM_INVALID);
         }
         Short enable = wmNewsDto.getEnable();
@@ -191,6 +193,10 @@ public class WmNewsServiceImpl extends ServiceImpl<WmNewsMapper, WmNews> impleme
                 .set(WmNews::getEnable, enable)
                 .eq(WmNews::getId,wmNewsDto.getId());
         this.wmNewsMapper.update(wmNews,wrapper);
+        Map<String,Object> map = new HashMap<>();
+        map.put("articleId",wmNews.getArticleId());
+        map.put("enable",enable);
+        kafkaTemplate.send("article-Topic",JSONUtil.toJsonStr(map));
         return ResponseResult.okResult(200,"操作成功");
     }
 
