@@ -31,4 +31,10 @@ public class LoginDto {
      */
     private String password;
 
+
+    /**
+     * 用户名
+     */
+    private String name;
+
 }

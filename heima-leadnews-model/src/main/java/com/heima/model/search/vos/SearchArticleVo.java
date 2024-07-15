@@ -10,7 +10,11 @@ public class SearchArticleVo {
     // 文章id
     private Long id;
     // 文章标题
+
+    private String title;
+
     private String h_title;
+
     // 文章发布时间
     private Date publishTime;
     // 文章布局

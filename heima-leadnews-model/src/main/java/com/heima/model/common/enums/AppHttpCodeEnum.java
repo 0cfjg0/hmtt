@@ -44,7 +44,27 @@ public enum AppHttpCodeEnum {
     APP_ARTICLE_CONTENT_UPDATE_ERROR(10009,"文章内容更新异常"),
     STATUS_UPDATE_ERROR(10010,"状态更新异常"),
     NEWS_UPDATE_ERROR(10011,"文章更新异常"),
-    ARTICLE_UP_OR_DOWN_ERROR(10012,"文章上下架异常");
+    ARTICLE_UP_OR_DOWN_ERROR(10012,"文章上下架异常"),
+
+
+    //admin模块异常
+    AD_USER_DATA_NOT_EXIST(5100,"AdUser数据不存在"),
+
+    //sensitive功能异常
+    SENSITIVE_DELETE_ERROR(6100,"敏感词删除失败"),
+    SENSITIVE_LIST_ERROR(6101,"敏感词查询失败"),
+    SENSITIVE_SAVE_ERROR(6102,"敏感词保存失败"),
+    SENSITIVE_UPDATE_ERROR(6103,"敏感词更新失败"),
+
+    //channel功能异常
+    CHANNEL_DELETE_ERROR(7100,"频道删除失败"),
+    CHANNEL_LIST_ERROR(7101,"频道查询失败"),
+    CHANNEL_SAVE_ERROR(7102,"频道保存失败"),
+    CHANNEL_UPDATE_ERROR(7103,"频道更新失败"),
+
+    //审核功能异常
+    AUDIT_OPERTATION_ERROR(8100,"无效的操作"),
+    AUDIT_UPDATE_ERROR(8104,"审核失败");
 
     int code;
     String errorMessage;

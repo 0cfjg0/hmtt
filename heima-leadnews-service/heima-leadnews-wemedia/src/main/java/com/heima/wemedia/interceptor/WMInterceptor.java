@@ -19,11 +19,13 @@ public class WMInterceptor implements HandlerInterceptor {
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
         //1.获取请求头
         String wmUserId = request.getHeader("wmUserId");
-        if(ObjectUtil.isEmpty(wmUserId)){
+        String UserId = request.getHeader("UserId");
+        if(ObjectUtil.isAllEmpty(wmUserId,UserId)){
             response.setContentType("application/json");
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             return false;
         }
+        wmUserId = ObjectUtil.isEmpty(wmUserId)?UserId:wmUserId;
         //2.放到ThreadLocal中
         try {
             Integer userId = Convert.toInt(wmUserId);

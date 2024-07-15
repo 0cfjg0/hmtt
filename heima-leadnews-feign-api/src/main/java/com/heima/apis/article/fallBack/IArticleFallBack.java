@@ -11,4 +11,9 @@ public class IArticleFallBack implements IArticleClient {
     public ResponseResult saveArticle(ArticleDto dto) {
         return ResponseResult.okResult("fallBack");
     }
+
+    @Override
+    public String getAuthor(Long articleId) {
+        return "查询中";
+    }
 }

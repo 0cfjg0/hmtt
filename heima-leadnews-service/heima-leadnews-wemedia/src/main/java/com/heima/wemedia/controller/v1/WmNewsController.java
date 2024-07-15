@@ -3,6 +3,7 @@ package com.heima.wemedia.controller.v1;
 import com.baomidou.mybatisplus.extension.api.R;
 import com.heima.model.common.dtos.ResponseResult;
 import com.heima.model.common.enums.AppHttpCodeEnum;
+import com.heima.model.news.NewsAuthDto;
 import com.heima.model.wemedia.dtos.WmNewsDto;
 import com.heima.model.wemedia.dtos.WmNewsPageReqDto;
 import com.heima.wemedia.service.WmNewsService;
@@ -55,4 +56,27 @@ public class WmNewsController {
         return wmNewsService.downOrUpNews(wmNewsDto);
     }
 
+    @PostMapping("/list_vo")
+    public ResponseResult listNews(@RequestBody NewsAuthDto dto){
+        log.info("dto:{}",dto);
+        return wmNewsService.listNews(dto);
+    }
+
+    @GetMapping("/one_vo/{id}")
+    public ResponseResult detailNews(@PathVariable Long id){
+        log.info("id:{}",id);
+        return wmNewsService.getDetail(id);
+    }
+
+    @PostMapping("/auth_fail")
+    public ResponseResult auditFail(@RequestBody NewsAuthDto dto){
+        log.info("dto:{}",dto);
+        return wmNewsService.auditFail(dto);
+    }
+
+    @PostMapping("/auth_pass")
+    public ResponseResult auditPass(@RequestBody NewsAuthDto dto){
+        log.info("dto:{}",dto);
+        return wmNewsService.auditPass(dto);
+    }
 }

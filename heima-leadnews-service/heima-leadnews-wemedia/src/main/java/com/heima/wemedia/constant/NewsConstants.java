@@ -32,4 +32,11 @@ public class NewsConstants {
 
     public final static Short UP = 1;//上架
     public final static Short DOWN = 0;//下架
+
+    //审核结果常量
+    public final static Short AUDIT_FAILED = 2;//审核失败
+    public final static Short AUDIT_SUCCEED_BYHUMAN = 4;//人工审核通过
+
+
+
 }

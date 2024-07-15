@@ -1,7 +1,9 @@
 package com.heima.article.service.impl;
 
+import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.convert.Convert;
 import cn.hutool.core.util.ObjectUtil;
+import cn.hutool.json.JSONUtil;
 import com.alibaba.fastjson.JSON;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
@@ -9,15 +11,18 @@ import com.heima.article.mapper.ArticleContentMapper;
 import com.heima.article.mapper.ArticleMapper;
 import com.heima.article.service.ArticleService;
 import com.heima.article.service.ArticleStaticGenerater;
+import com.heima.common.constants.ArticleConstants;
 import com.heima.common.exception.CustomException;
 import com.heima.file.service.impl.MinIOFileStorageService;
 import com.heima.model.article.pojos.ApArticle;
 import com.heima.model.article.pojos.ApArticleContent;
 import com.heima.model.common.enums.AppHttpCodeEnum;
+import com.heima.model.search.vos.SearchArticleVo;
 import freemarker.template.Configuration;
 import freemarker.template.Template;
 import freemarker.template.TemplateException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
@@ -47,6 +52,9 @@ public class ArticleStaticGeneraterImpl implements ArticleStaticGenerater {
     @Resource
     ArticleMapper articleMapper;
 
+    @Resource
+    KafkaTemplate<String,String> kafkaTemplate;
+
     @Override
     @Async
     public void generatePage(Long articleId) throws IOException, TemplateException {
@@ -75,6 +83,11 @@ public class ArticleStaticGeneraterImpl implements ArticleStaticGenerater {
         apArticle.setStaticUrl(url);
         articleMapper.updateById(apArticle);
         log.warn(url);
+
+        //kafka发送url到搜索服务的索引库
+        SearchArticleVo searchArticleVo = BeanUtil.toBean(apArticle, SearchArticleVo.class);
+        searchArticleVo.setContent(content);
+        kafkaTemplate.send(ArticleConstants.ARTICLE_ES_SYNC_TOPIC, JSONUtil.toJsonStr(searchArticleVo));
     }
 
 }

@@ -12,11 +12,15 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.api.R;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.heima.apis.admin.AdminClient;
 import com.heima.apis.article.IArticleClient;
+import com.heima.common.constants.OperationConstant;
 import com.heima.common.exception.CustomException;
+import com.heima.model.admin.pojos.AdUserOperation;
 import com.heima.model.common.dtos.PageResponseResult;
 import com.heima.model.common.dtos.ResponseResult;
 import com.heima.model.common.enums.AppHttpCodeEnum;
+import com.heima.model.news.NewsAuthDto;
 import com.heima.model.wemedia.dtos.WmNewsDto;
 import com.heima.model.wemedia.dtos.WmNewsPageReqDto;
 import com.heima.model.wemedia.pojos.WmMaterial;
@@ -74,6 +78,9 @@ public class WmNewsServiceImpl extends ServiceImpl<WmNewsMapper, WmNews> impleme
 
     @Resource
     RedissonClient redissonClient;
+
+    @Resource
+    AdminClient adminClient;
 
     @Resource
     KafkaTemplate<String,String> kafkaTemplate;
@@ -151,7 +158,9 @@ public class WmNewsServiceImpl extends ServiceImpl<WmNewsMapper, WmNews> impleme
 //            return ResponseResult.okResult(200,"提交成功");
 //        }
         dto.setEnable(NewsConstants.UP);
-        this.downOrUpNews(dto);
+        if (!dto.getStatus().equals(NewsConstants.DRAFT_STATUS)){
+            this.downOrUpNews(dto);
+        }
 
         //审核
         try {
@@ -198,6 +207,97 @@ public class WmNewsServiceImpl extends ServiceImpl<WmNewsMapper, WmNews> impleme
         map.put("enable",enable);
         kafkaTemplate.send("article-Topic",JSONUtil.toJsonStr(map));
         return ResponseResult.okResult(200,"操作成功");
+    }
+
+    @Override
+    public ResponseResult listNews(NewsAuthDto dto) {
+        //参数校验
+        if(ObjectUtil.isEmpty(dto)){
+            return ResponseResult.errorResult(AppHttpCodeEnum.PARAM_INVALID);
+        }
+        //业务
+        PageResponseResult res = new PageResponseResult(dto.getPage(),dto.getSize(),0);
+        Page page = new Page(dto.getPage(),dto.getSize());
+        LambdaQueryWrapper<WmNews> wrapper = Wrappers.<WmNews>lambdaQuery()
+                .eq(dto.getStatus() != null, WmNews::getStatus, dto.getStatus())
+                .like(dto.getTitle() != null, WmNews::getTitle, dto.getTitle());
+        this.page(page,wrapper);
+        List<WmNews> records = page.getRecords();
+        records.stream().forEach(item->
+            {
+                item.setAuthorName(articleClient.getAuthor(item.getArticleId()));;
+            }
+        );
+        res.setTotal(Convert.toInt(page.getTotal()));
+        res.setData(page.getRecords());
+
+        AdUserOperation opt = AdUserOperation.builder()
+                .description("查询文章")
+                .userId(Convert.toLong(WMThreadLocalUtils.getCurrentUser()))
+                .type(OperationConstant.SELECT)
+                .build();
+        adminClient.saveOperation(opt);
+        return res;
+    }
+
+    @Override
+    public ResponseResult auditFail(NewsAuthDto dto) {
+        //参数校验
+        if(ObjectUtil.isEmpty(dto)){
+            return ResponseResult.errorResult(AppHttpCodeEnum.PARAM_INVALID);
+        }
+
+        //业务处理
+        Integer newsid = dto.getId();
+        WmNews news = this.getById(newsid);
+        if(news.getStatus().equals(NewsConstants.AUDIT_FAILED)){
+            return ResponseResult.errorResult(AppHttpCodeEnum.AUDIT_OPERTATION_ERROR);
+        }
+        news.setStatus(NewsConstants.AUDIT_FAILED);
+        try {
+            this.updateById(news);
+        } catch (Exception e) {
+            return ResponseResult.errorResult(AppHttpCodeEnum.AUDIT_UPDATE_ERROR);
+        }
+
+        //保存结果
+        AdUserOperation opt = AdUserOperation.builder()
+                .description("审核失败,理由:" + dto.getMsg())
+                .userId(Convert.toLong(WMThreadLocalUtils.getCurrentUser()))
+                .type(OperationConstant.UPDATE)
+                .build();
+        adminClient.saveOperation(opt);
+        return ResponseResult.okResult(200,"更新成功");
+    }
+
+    @Override
+    public ResponseResult auditPass(NewsAuthDto dto) {
+        //参数校验
+        if(ObjectUtil.isEmpty(dto)){
+            return ResponseResult.errorResult(AppHttpCodeEnum.PARAM_INVALID);
+        }
+
+        //业务处理
+        Integer newsid = dto.getId();
+        WmNews news = this.getById(newsid);
+        if(news.getStatus().equals(NewsConstants.AUDIT_SUCCEED_BYHUMAN)){
+            return ResponseResult.errorResult(AppHttpCodeEnum.AUDIT_OPERTATION_ERROR);
+        }
+        news.setStatus(NewsConstants.AUDIT_SUCCEED_BYHUMAN);
+        try {
+            this.updateById(news);
+        } catch (Exception e) {
+            return ResponseResult.errorResult(AppHttpCodeEnum.AUDIT_UPDATE_ERROR);
+        }
+
+        //保存结果
+        AdUserOperation opt = AdUserOperation.builder()
+                .description("审核成功,理由:" + dto.getMsg())
+                .userId(Convert.toLong(WMThreadLocalUtils.getCurrentUser()))
+                .type(OperationConstant.UPDATE)
+                .build();
+        adminClient.saveOperation(opt);
+        return ResponseResult.okResult(200,"更新成功");
     }
 
     /**

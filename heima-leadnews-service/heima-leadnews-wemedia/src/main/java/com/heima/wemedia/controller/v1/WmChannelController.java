@@ -1,12 +1,13 @@
 package com.heima.wemedia.controller.v1;
 
+import com.baomidou.mybatisplus.extension.api.R;
 import com.heima.model.common.dtos.ResponseResult;
+import com.heima.model.wemedia.dtos.WmChannelDto;
+import com.heima.model.wemedia.dtos.WmChannelPageDto;
 import com.heima.model.wemedia.pojos.WmChannel;
 import com.heima.wemedia.service.WmChannelService;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
 
@@ -23,4 +24,23 @@ public class WmChannelController {
         return wmChannelService.getChannels();
     }
 
+    @GetMapping("/del/{id}")
+    public ResponseResult delChannels(@PathVariable Integer id){
+        return wmChannelService.delChannels(id);
+    }
+
+    @PostMapping("/list")
+    public ResponseResult listChannels(@RequestBody WmChannelPageDto dto){
+        return wmChannelService.listChannels(dto);
+    }
+
+    @PostMapping("/save")
+    public ResponseResult saveChannels(@RequestBody WmChannelDto dto){
+        return wmChannelService.saveChannel(dto);
+    }
+
+    @PostMapping("/update")
+    public ResponseResult updateChannels(@RequestBody WmChannelDto dto){
+        return wmChannelService.updateChannel(dto);
+    }
 }
